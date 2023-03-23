@@ -1,0 +1,56 @@
+trigger: none
+
+resources:
+- repo: self
+
+parameters:
+- name: konnect_runtime_group
+  displayName: Konnect Runtime Group Name
+  type: string
+  default: dev
+  values:
+  - dev
+  - qa
+  - stg
+- name: select_tags
+  displayName: Konnect select tags(accepts multiple tags with comma separated values)
+  type: string
+
+variables:
+  - group: 'kong-demo'
+
+stages:
+- stage: dev
+  displayName: DEV Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'dev') 
+  jobs:
+  - template: /azure/deck_dump_commands.yaml
+    parameters:
+      konnect_runtime_group: dev
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      select_tags: ${{ parameters.select_tags }}
+
+- stage: qa
+  displayName: QA Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'qa') 
+  dependsOn: dev
+  jobs:
+  - template: /azure/deck_dump_commands.yaml
+    parameters:
+      konnect_runtime_group: qa
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      select_tags: ${{ parameters.select_tags }}
+      
+- stage: stg
+  displayName: STG Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'stg') 
+  dependsOn: qa
+  jobs:
+  - template: /azure/deck_dump_commands.yaml
+    parameters:
+      konnect_runtime_group: stg
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      select_tags: ${{ parameters.select_tags }}

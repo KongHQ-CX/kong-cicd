@@ -1,0 +1,13 @@
+parameters:
+- name: command
+  type: string
+  default: ping
+- name: konnect_runtime_group
+  type: string
+  default: "default"
+- name: options
+  type: string
+
+steps:
+- script: |
+   deck ${{ parameters.command }} --konnect-runtime-group-name ${{ parameters.konnect_runtime_group }} ${{ parameters.options }} --tls-skip-verify

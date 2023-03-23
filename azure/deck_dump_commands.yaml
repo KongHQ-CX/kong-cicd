@@ -1,0 +1,51 @@
+parameters:
+- name: konnect_addr
+  type: string
+  default: https://us.api.konghq.com
+- name: kong_file
+  type: string
+  default: ""
+- name: konnect_runtime_group
+  type: string
+  default: dev
+- name: konnect_token
+  type: string
+  default: ""
+- name: select_tags
+  displayName: List Konnect select_tags
+  type: string
+
+jobs:
+- job: Deck_Ping
+  displayName: Deck Ping for Konnect
+  condition: succeeded()
+  steps:
+    - template: /azure/prerequisites.yaml
+    - script: |
+        deck ping --konnect-runtime-group-name ${{ parameters.konnect_runtime_group }} --konnect-token ${{ parameters.konnect_token }} --konnect-addr ${{ parameters.konnect_addr }} --tls-skip-verify
+
+- job: Deck_Dump
+  displayName: Deck Dump for Konnect
+  condition: succeeded()
+  dependsOn: Deck_Ping
+  steps:
+    - template: /azure/prerequisites.yaml
+    - script: |
+        select_tags_list=""
+        tags_list=(`echo ${{ parameters.select_tags }} | tr ',' ' '`)
+
+        for tag in ${tags_list[@]}
+        do
+          select_tags_list+="--select-tag $tag "
+        done
+        echo "##vso[task.setvariable variable=select_tags_list;]$select_tags_list"
+      condition: succeeded()
+    - script: |
+        mkdir results
+        deck dump --konnect-runtime-group-name ${{ parameters.konnect_runtime_group }} --konnect-token ${{ parameters.konnect_token }} --konnect-addr ${{ parameters.konnect_addr }} $(select_tags_list) --yes --format yaml --output-file results/konnect-$(Build.BuildId).yaml --tls-skip-verify
+      condition: succeeded()
+    - task: PublishPipelineArtifact@1
+      condition: succeeded()
+      inputs:
+        targetPath: $(System.DefaultWorkingDirectory)/results
+        artifactName: konnect-$(Build.BuildId)

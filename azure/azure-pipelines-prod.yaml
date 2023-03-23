@@ -1,0 +1,54 @@
+trigger: none
+
+resources:
+- repo: self
+
+parameters:
+- name: konnect_runtime_group
+  displayName: Konnect Runtime Group Name
+  type: string
+  default: prod
+- name: service_name
+  displayName: Name of the Service in Konnect
+  type: string
+  default: mockbin
+  values:
+  - mockbin
+
+variables:
+  - group: 'kong-prod'
+
+stages:
+- stage: prod_pre_req
+  displayName: PROD Pre-requisites
+  jobs:
+  - template: /azure/deck_commands_prod.yaml
+    parameters:
+      kong_file: ${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml
+      konnect_service_name: ${{ parameters.service_name }}
+      konnect_runtime_group: ${{ parameters.konnect_runtime_group }}
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+
+- stage: prod_sync
+  displayName: PROD Environment Sync
+  condition: succeeded()
+  dependsOn:  prod_pre_req
+  jobs:
+  - deployment: KongResourcesSync
+    displayName: Deploy Kong Resources
+    environment: 'prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: /azure/prerequisites.yaml
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifact: ${{ parameters.service_name }}
+              path: $(System.DefaultWorkingDirectory)/results/${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml
+          - template: /azure/action.yaml
+            parameters:
+              command: sync
+              options: "--konnect-addr $(konnect-addr) --konnect-token $(konnect-token) -s $(System.DefaultWorkingDirectory)/results/${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml"
+              konnect_runtime_group: "${{ parameters.konnect_runtime_group }}"

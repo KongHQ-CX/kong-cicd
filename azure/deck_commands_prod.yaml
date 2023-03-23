@@ -1,0 +1,71 @@
+parameters:
+- name: konnect_addr
+  type: string
+  default: https://us.api.konghq.com
+- name: kong_file
+  type: string
+  default: ""
+- name: konnect_runtime_group
+  type: string
+  default: prod
+- name: konnect_service_name
+  type: string
+- name: konnect_token
+  type: string
+  default: ""
+
+jobs:
+- job: Deck_Ping
+  displayName: Deck Ping for Konnect
+  condition: succeeded()
+  steps:
+    - template: /azure/prerequisites.yaml
+    - template: /azure/action.yaml
+      parameters:
+        command: ping
+        options: "--konnect-token ${{ parameters.konnect_token }} --konnect-addr ${{ parameters.konnect_addr }}"
+        konnect_runtime_group: "${{ parameters.konnect_runtime_group }}"
+        
+- job: Deck_Validate
+  displayName: Deck Validate for Konnect
+  condition: succeeded()
+  dependsOn: 
+    - Deck_Ping
+  steps:
+    - template: /azure/prerequisites.yaml
+    - task: PythonScript@0
+      condition: succeeded()
+      inputs:
+        scriptSource: 'filePath'
+        scriptPath: $(System.DefaultWorkingDirectory)/generate_yaml.py
+      env:
+        KONNECT_SERVICE_NAME: ${{ parameters.konnect_service_name }}
+        KONNECT_RUNTIME_GROUP: ${{ parameters.konnect_runtime_group }}
+    - template: /azure/action.yaml
+      parameters:
+        command: validate
+        options: "--konnect-addr ${{ parameters.konnect_addr }} --konnect-token ${{ parameters.konnect_token }} -s $(System.DefaultWorkingDirectory)/results/${{ parameters.kong_file }}"
+        konnect_runtime_group: "${{ parameters.konnect_runtime_group }}"
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: $(System.DefaultWorkingDirectory)/results/${{ parameters.kong_file }}
+        artifactName: ${{ parameters.konnect_service_name }}
+
+    
+- job: Deck_Diff
+  displayName: Deck Diff for Konnect
+  condition: succeeded()
+  dependsOn:
+  - Deck_Ping
+  - Deck_Validate
+  steps:
+    - template: /azure/prerequisites.yaml
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: ${{ parameters.konnect_service_name }}
+        path: $(System.DefaultWorkingDirectory)/results/${{ parameters.kong_file }}
+    - template: /azure/action.yaml
+      parameters:
+        command: diff
+        options: "--konnect-token ${{ parameters.konnect_token }} --konnect-addr ${{ parameters.konnect_addr }} -s $(System.DefaultWorkingDirectory)/results/${{ parameters.kong_file }}"
+        konnect_runtime_group: "${{ parameters.konnect_runtime_group }}"

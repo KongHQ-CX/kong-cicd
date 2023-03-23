@@ -1,0 +1,15 @@
+---
+konnect_runtime_group: stg
+select_tags:
+  - mockbin_stg
+services:
+  - service_name: mockbin
+    host: mockbin.org
+    path: /echo
+    routes:
+      - hosts: 
+          - mockbin.org
+        paths: 
+          - /echo
+        snis: 
+          - mockbin.org

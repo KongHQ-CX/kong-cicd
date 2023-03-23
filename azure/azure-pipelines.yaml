@@ -1,0 +1,67 @@
+trigger: none
+
+resources:
+- repo: self
+
+parameters:
+- name: konnect_runtime_group
+  displayName: Konnect Runtime Group Name
+  type: string
+  default: dev
+  values:
+  - dev
+  - qa
+  - stg
+- name: service_name
+  displayName: Name of the Service in Konnect
+  type: string
+  default: mockbin
+  values:
+  - mockbin
+- name: sync_configs
+  displayName: Sync configurations to Konnect
+  type: boolean
+  default: false
+
+variables:
+  - group: 'kong-nonprod'
+
+stages:
+- stage: dev
+  displayName: DEV Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'dev') 
+  jobs:
+  - template: /azure/deck_commands.yaml
+    parameters:
+      kong_file: ${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml
+      konnect_service_name: ${{ parameters.service_name }}
+      konnect_runtime_group: dev
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      to_sync: ${{ parameters.sync_configs }}
+
+- stage: qa
+  displayName: QA Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'qa') 
+  jobs:
+  - template: /azure/deck_commands.yaml
+    parameters:
+      kong_file: ${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml
+      konnect_service_name: ${{ parameters.service_name }}
+      konnect_runtime_group: qa
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      to_sync: ${{ parameters.sync_configs }}
+      
+- stage: stg
+  displayName: STG Environment
+  condition: eq('${{ parameters.konnect_runtime_group }}', 'stg') 
+  jobs:
+  - template: /azure/deck_commands.yaml
+    parameters:
+      kong_file: ${{ parameters.service_name }}_${{ parameters.konnect_runtime_group }}.yaml
+      konnect_service_name: ${{ parameters.service_name }}
+      konnect_runtime_group: stg
+      konnect_token: $(konnect-token)
+      konnect_addr: $(konnect-addr)
+      to_sync: ${{ parameters.sync_configs }}
